@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="appName">Mine Chat</string>
+  <string name="launcherName">Mine Chat</string>
+  <string name="providerAuthority">com.minechat.app.fileprovider</string>
+  <string name="hostName">minechat.com</string>
+  <string name="webManifestUrl">https://minechat.com/manifest.webmanifest</string>
+  <string name="generatorApp">Bubblewrap</string>
+  <string name="launchUrl">https://minechat.com/</string>
+  <string name="fallbackType">loadUrlInTwa</string>
+  <string name="orientation">any</string>
+  <string name="assetStatements">
+    [{
+        "relation": ["delegate_permission/common.handle_all_urls"],
+        "target": {
+            "namespace": "web",
+            "site": "https://minechat.com"
+        }
+    }]
+  </string>
+</resources>

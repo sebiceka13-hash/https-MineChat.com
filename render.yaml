@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: minechat
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/status
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: SSL_OFF
+        value: "1"
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GEMINI_IMAGE_MODEL
+        value: gemini-2.5-flash-image
+      - key: GEMINI_MAX_OUTPUT_TOKENS
+        value: "16000"
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: IMAGE_MODEL
+        value: gpt-image-1
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: APP_USER
+        sync: false
+      - key: APP_EMAIL
+        sync: false
+      - key: APP_PHONE
+        sync: false

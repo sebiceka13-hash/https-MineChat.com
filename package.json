@@ -1,0 +1,13 @@
+{
+  "name": "mine-chat",
+  "version": "3.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "nodemailer": "^10.1.0",
+    "openai": "^5.12.0"
+  }
+}

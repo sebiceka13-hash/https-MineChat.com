@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.minechat.app",
+    "sha256_cert_fingerprints": ["D6:04:E7:BD:48:8C:53:C0:03:66:23:1B:55:B9:36:79:AF:E5:D4:1A:26:C0:69:CA:D2:B0:49:44:2F:38:15:68"]
+  }
+}]
