@@ -1557,9 +1557,11 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-const tlsOptions = fs.existsSync(PFX_FILE)
-  ? { pfx: fs.readFileSync(PFX_FILE), passphrase: PFX_PASS }
-  : { cert: fs.readFileSync(CERT_FILE), key: fs.readFileSync(KEY_FILE) };
+const tlsOptions = useHttps
+  ? (fs.existsSync(PFX_FILE)
+    ? { pfx: fs.readFileSync(PFX_FILE), passphrase: PFX_PASS }
+    : { cert: fs.readFileSync(CERT_FILE), key: fs.readFileSync(KEY_FILE) })
+  : null;
 
 const server = useHttps
   ? https.createServer(tlsOptions, app)
