@@ -2565,6 +2565,14 @@
     });
   }
   async function setupGoogle(config) {
+    const allowedGoogle = ['https://minechat.com','https://https-minechat-com-1.onrender.com','https://localhost','http://localhost:443','https://localhost:443'];
+    if(!allowedGoogle.includes(location.origin)){
+      const gateBtn = document.getElementById('gateBtn');
+      if(gateBtn){ gateBtn.style.display = 'none'; }
+      const gateSub = document.getElementById('gateSub');
+      if(gateSub){ gateSub.removeAttribute('data-i18n'); gateSub.textContent = 'Hyrja me Google funksionon vetëm në versionin zyrtar. Përdor: https://https-minechat-com-1.onrender.com'; }
+      return;
+    }
     const info = (config && config.google) || {};
     if (!info.enabled || !info.clientId) {
       gateError(T("googleNotConfigured"));
