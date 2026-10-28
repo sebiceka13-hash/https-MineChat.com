@@ -710,7 +710,25 @@
     #gateBtn { display: flex; justify-content: center; align-items: center; }
     #gateBtn > div { max-width: 100%; }
     .gate-retry { margin-top: 12px; font: inherit; font-size: 13px; padding: 9px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); cursor: pointer; }
-  </style></head><body><div id="splash">  <div class="bar"><i></i></div>  <p>Mine Chat po hapet…</p></div><div id="scrim"></div><div id="gate" hidden>
+    [data-no-google='1'] #gateBtn, [data-no-google='1'] #gateBtn * { display: none !important; visibility: hidden !important; }
+</style></head><body>
+<script>
+(function(){
+  var allowed=['https://minechat.com','https://https-minechat-com-1.onrender.com','https://localhost','http://localhost:443','https://localhost:443'];
+  if(!allowed.includes(location.origin)){
+    document.documentElement.setAttribute('data-no-google','1');
+    function hide(){
+      var b=document.getElementById('gateBtn');
+      if(b){ b.style.display='none'; b.setAttribute('hidden',''); }
+      var s=document.getElementById('gateSub');
+      if(s){ s.removeAttribute('data-i18n'); s.textContent='Hyrja me Google funksionon vetëm në versionin zyrtar. Përdor: https://https-minechat-com-1.onrender.com'; }
+    }
+    if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',hide); } else { hide(); }
+    var mo=new MutationObserver(hide); mo.observe(document.documentElement,{childList:true,subtree:true});
+    setTimeout(hide,0); setTimeout(hide,50); setTimeout(hide,200);
+  }
+})();
+</script><div id="splash">  <div class="bar"><i></i></div>  <p>Mine Chat po hapet…</p></div><div id="scrim"></div><div id="gate" hidden>
   <div class="gate-card">
     <h2 id="gateTitle">Sign in to continue</h2>
     <p id="gateSub" data-i18n="gateSubGoogle">Sign in with Google to continue.</p>
