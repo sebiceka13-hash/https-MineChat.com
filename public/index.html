@@ -717,15 +717,15 @@
   var allowed=['https://minechat.com','https://https-minechat-com-1.onrender.com','https://localhost','http://localhost:443','https://localhost:443'];
   if(!allowed.includes(location.origin)){
     document.documentElement.setAttribute('data-no-google','1');
-    function hide(){
+    function kill(){
       var b=document.getElementById('gateBtn');
-      if(b){ b.style.display='none'; b.setAttribute('hidden',''); }
+      if(b && b.parentNode){ b.parentNode.removeChild(b); }
       var s=document.getElementById('gateSub');
       if(s){ s.removeAttribute('data-i18n'); s.textContent='Hyrja me Google funksionon vetëm në versionin zyrtar. Përdor: https://https-minechat-com-1.onrender.com'; }
     }
-    if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',hide); } else { hide(); }
-    var mo=new MutationObserver(hide); mo.observe(document.documentElement,{childList:true,subtree:true});
-    setTimeout(hide,0); setTimeout(hide,50); setTimeout(hide,200);
+    if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',kill); } else { kill(); }
+    var mo=new MutationObserver(kill); mo.observe(document.documentElement,{childList:true,subtree:true});
+    setTimeout(kill,0); setTimeout(kill,10); setTimeout(kill,50); setTimeout(kill,100); setTimeout(kill,250); setTimeout(kill,500);
   }
 })();
 </script><div id="splash">  <div class="bar"><i></i></div>  <p>Mine Chat po hapet…</p></div><div id="scrim"></div><div id="gate" hidden>
