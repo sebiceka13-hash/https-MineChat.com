@@ -715,6 +715,7 @@
 <script>
 (function(){
   var allowed=['https://minechat.com','https://https-minechat-com-1.onrender.com','https://localhost','http://localhost:443','https://localhost:443'];
+  if(location.origin.indexOf('.onrender.com')!==-1){ return; }
   if(!allowed.includes(location.origin)){
     document.documentElement.setAttribute('data-no-google','1');
     function kill(){
@@ -732,7 +733,7 @@
   <div class="gate-card">
     <h2 id="gateTitle">Sign in to continue</h2>
     <p id="gateSub" data-i18n="gateSubGoogle">Sign in with Google to continue.</p>
-    <div id="gateBtn" style="display:none!important;height:0!important;overflow:hidden!important"></div>
+    <div id="gateBtn"></div>
     <button id="gateRetry" class="gate-retry" type="button" hidden>Retry</button>
     <p class="gate-note" id="gateNote" hidden></p>
   </div>
