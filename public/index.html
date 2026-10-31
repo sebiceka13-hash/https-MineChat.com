@@ -712,24 +712,7 @@
     .gate-retry { margin-top: 12px; font: inherit; font-size: 13px; padding: 9px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); cursor: pointer; }
     [data-no-google='1'] #gateBtn, [data-no-google='1'] #gateBtn * { display: none !important; visibility: hidden !important; }
 </style></head><body>
-<script>
-(function(){
-  var allowed=['https://minechat.com','https://https-minechat-com-1.onrender.com','https://localhost','http://localhost:443','https://localhost:443'];
-  if(location.origin.indexOf('.onrender.com')!==-1){ return; }
-  if(!allowed.includes(location.origin)){
-    document.documentElement.setAttribute('data-no-google','1');
-    function kill(){
-      var b=document.getElementById('gateBtn');
-      if(b && b.parentNode){ b.parentNode.removeChild(b); }
-      var s=document.getElementById('gateSub');
-      if(s){ s.removeAttribute('data-i18n'); s.textContent='Hyrja me Google funksionon vetëm në versionin zyrtar. Përdor: https://https-minechat-com-1.onrender.com'; }
-    }
-    if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',kill); } else { kill(); }
-    var mo=new MutationObserver(kill); mo.observe(document.documentElement,{childList:true,subtree:true});
-    setTimeout(kill,0); setTimeout(kill,10); setTimeout(kill,50); setTimeout(kill,100); setTimeout(kill,250); setTimeout(kill,500);
-  }
-})();
-</script><div id="splash">  <div class="bar"><i></i></div>  <p>Mine Chat po hapet…</p></div><div id="scrim"></div><div id="gate" hidden>
+<div id="splash">  <div class="bar"><i></i></div>  <p>Mine Chat po hapet…</p></div><div id="scrim"></div><div id="gate" hidden>
   <div class="gate-card">
     <h2 id="gateTitle">Sign in to continue</h2>
     <p id="gateSub" data-i18n="gateSubGoogle">Sign in with Google to continue.</p>
