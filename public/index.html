@@ -715,6 +715,12 @@
     #gateBtn > div { max-width: 100%; }
     .gate-retry { margin-top: 12px; font: inherit; font-size: 13px; padding: 9px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); cursor: pointer; }
     [data-no-google='1'] #gateBtn, [data-no-google='1'] #gateBtn * { display: none !important; visibility: hidden !important; }
+
+    @media (max-width: 1280px) {
+      #side { position: fixed; top: 0; bottom: 0; left: 0; }
+      body.side-off #side { left: -268px; margin-left: 0; }
+      #main { width: 100%; }
+    }
 </style></head><body class=" side-off>
 <div id="splash">  <div class="bar"><i></i></div>  <p>Mine Chat po hapet…</p></div><div id="scrim"></div><div id="gate" hidden>
   <div class="gate-card">
