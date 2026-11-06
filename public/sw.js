@@ -1,4 +1,4 @@
-﻿const VERSION = 'minechat-v1.0.49';
+﻿const VERSION = 'minechat-v1.0.51';
 const APP_SHELL = [
   '/',
   '/index.html',

@@ -282,22 +282,50 @@ const GEMINI_KEY = String(process.env.GEMINI_API_KEY || '').trim();
 const GEMINI_CHAT_MODEL = String(process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
 const GEMINI_IMAGE_MODEL = String(process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image').trim();
 const GEMINI_BASE = (String(process.env.GEMINI_API_BASE || '').trim() || 'https://generativelanguage.googleapis.com/v1beta/models/').replace(/\/*$/, '/');
+const GEMINI_FALLBACK_MODELS = (String(process.env.GEMINI_FALLBACK_MODELS || 'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite'))
+  .split(',').map((m) => m.trim()).filter(Boolean)
+  .filter((m) => m !== GEMINI_CHAT_MODEL);
+const GEMINI_RETRY_DELAY_MS = Number(process.env.GEMINI_RETRY_DELAY_MS) || 350;
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 15000;
+const GEMINI_BUSY_COOLDOWN_MS = Number(process.env.GEMINI_BUSY_COOLDOWN_MS) || 60000;
+const geminiBusyUntil = new Map();
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function geminiFetch(url, payload, timeoutMs = 0) {
+  const controller = timeoutMs > 0 ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    return await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeout = new Error('Gemini nuk u përgjigj në kohë.');
+      timeout.status = 504;
+      throw timeout;
+    }
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 const openai = process.env.AI_DEMO === '1' || !process.env.OPENAI_API_KEY ? null : new OpenAI();
 const PROVIDER = process.env.AI_DEMO === '1' ? 'demo' : GEMINI_KEY ? 'gemini' : openai ? 'openai' : 'demo';
 const DEMO_MODE = PROVIDER === 'demo';
 
-async function geminiCall(model, payload) {
+async function geminiCall(model, payload, timeoutMs = 0) {
   const url = `${GEMINI_BASE}${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(GEMINI_KEY)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const res = await geminiFetch(url, payload, timeoutMs);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = data?.error?.message || `Gemini ${res.status}`;
-    throw new Error(msg);
+    const error = new Error(msg);
+    error.status = res.status;
+    throw error;
   }
   return data;
 }
@@ -315,25 +343,64 @@ function geminiContents(turns) {
   });
 }
 
+function geminiBusy(error) {
+  const message = String(error?.message || '');
+  const status = Number(error?.status || 0);
+  return [404, 429, 500, 502, 503, 504].includes(status) ||
+    /high demand|overload|unavailable|temporar|try again|resource_exhausted/i.test(message);
+}
+
+// Tries the configured model first, then a couple of fallbacks when Gemini
+// reports that the model is overloaded / rate limited. This keeps chat usable
+// while a single model has a demand spike.
+async function geminiGenerate(payload, onText) {
+  const all = [GEMINI_CHAT_MODEL, ...GEMINI_FALLBACK_MODELS];
+  const fresh = all.filter((model) => !(geminiBusyUntil.get(model) > Date.now()));
+  const models = fresh.length ? fresh : all;
+  let lastError = null;
+  for (let i = 0; i < models.length; i += 1) {
+    let streamed = false;
+    try {
+      if (onText) {
+        const result = await geminiStream(models[i], payload, (text) => {
+          streamed = true;
+          onText(text);
+        }, GEMINI_TIMEOUT_MS);
+        geminiBusyUntil.delete(models[i]);
+        return result;
+      }
+      const result = geminiText(await geminiCall(models[i], payload, GEMINI_TIMEOUT_MS));
+      geminiBusyUntil.delete(models[i]);
+      return result;
+    } catch (error) {
+      lastError = error;
+      if (geminiBusy(error)) {
+        geminiBusyUntil.set(models[i], Date.now() + GEMINI_BUSY_COOLDOWN_MS);
+      }
+      if (streamed || !geminiBusy(error) || i === models.length - 1) throw error;
+      console.warn(`[gemini] ${models[i]} busy — falling back to ${models[i + 1]}`);
+      await sleep(GEMINI_RETRY_DELAY_MS);
+    }
+  }
+  throw lastError || new Error('Gemini nuk ktheu përgjigje.');
+}
+
 async function geminiAsk(turns, prompt) {
-  const data = await geminiCall(GEMINI_CHAT_MODEL, {
+  return geminiGenerate({
     systemInstruction: { parts: [{ text: prompt }] },
     contents: geminiContents(turns),
     generationConfig: { maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS },
   });
-  return geminiText(data);
 }
 
-async function geminiStream(model, payload, onText) {
+async function geminiStream(model, payload, onText, timeoutMs = 0) {
   const url = `${GEMINI_BASE}${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(GEMINI_KEY)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const res = await geminiFetch(url, payload, timeoutMs);
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data?.error?.message || `Gemini ${res.status}`);
+    const error = new Error(data?.error?.message || `Gemini ${res.status}`);
+    error.status = res.status;
+    throw error;
   }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -987,6 +1054,9 @@ function describeAiError(error) {
   if (/RESOURCE_EXHAUSTED|ai\.google\.dev\/gemini-api/i.test(message)) {
     return { reason: 'quota', error: 'Kuota e Gemini-s u shter (veçanërisht për imazhet në tier-in falas). Prit rikthimin e kuotës (~1 ditë) ose shto pagesë te aistudio.google.com.' };
   }
+  if (/high demand|overload|unavailable|temporar|try again/i.test(message)) {
+    return { reason: 'busy', error: 'Modeli i AI-së është i ngarkuar tani. Provo përsëri pas pak sekondash.' };
+  }
   if (status === 429 && /insufficient_quota|billing|credit/i.test(message)) {
     return { reason: 'credits', error: 'OpenAI nuk ka kredi më. Vendos pagesë te platform.openai.com/settings/organization/billing.' };
   }
@@ -1065,7 +1135,7 @@ app.post('/api/chat/stream', async (req, res) => {
       full = demoReply(text, turns.length);
       send('delta', { text: full });
     } else if (PROVIDER === 'gemini') {
-      await geminiStream(GEMINI_CHAT_MODEL, {
+      await geminiGenerate({
         systemInstruction: { parts: [{ text: systemPromptFor(req.body?.lang) }] },
         contents: geminiContents(turns),
         generationConfig: { maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS },
@@ -1419,12 +1489,11 @@ app.post('/api/vision', async (req, res) => {
           parts.push({ text: `Skedari "${f.name}" nuk mbështetet.` });
         }
       }
-      const data = await geminiCall(GEMINI_CHAT_MODEL, {
+      const reply = await geminiGenerate({
         systemInstruction: { parts: [{ text: VISION_PROMPT + ' Always answer in ' + replyLanguage(req.body?.lang) + '.' }] },
         contents: [{ role: 'user', parts }],
         generationConfig: { maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS },
       });
-      const reply = geminiText(data);
       if (!reply) throw new Error('Modeli nuk ktheu përgjigje.');
       return res.json({ reply });
     }
@@ -1484,7 +1553,7 @@ async function checkAiHealth() {
   aiHealth.provider = PROVIDER;
   if (PROVIDER === 'gemini') {
     try {
-      const probe = await geminiCall(GEMINI_CHAT_MODEL, {
+      await geminiGenerate({
         contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
         generationConfig: { maxOutputTokens: 1 },
       });
@@ -1500,6 +1569,9 @@ async function checkAiHealth() {
       } else if (/429|RESOURCE_EXHAUSTED|quota/i.test(message)) {
         aiHealth.reason = 'quota';
         aiHealth.error = 'Kota e falas u mbush — prite pak ose perdor flash-lite.';
+      } else if (/high demand|overload|unavailable|temporar|503/i.test(message)) {
+        aiHealth.reason = 'busy';
+        aiHealth.error = 'Modeli është i zënë tani — provo përsëri pas pak.';
       } else if (!/fetch failed|ENOTFOUND|ETIMEDOUT|network/i.test(message)) {
         aiHealth.reason = 'error';
         aiHealth.error = message.slice(0, 160);
@@ -1582,7 +1654,7 @@ server.on('listening', () => {
 
   checkAiHealth().then(() => {
     if (aiHealth.ok) {
-      console.log(`AI OK — modeli "${AI_MODEL}".`);
+      console.log(`AI OK — modeli "${PROVIDER === 'gemini' ? GEMINI_CHAT_MODEL : AI_MODEL}".`);
     } else {
       console.log(`AI PROBLEM [${aiHealth.reason}]: ${aiHealth.error}`);
     }
