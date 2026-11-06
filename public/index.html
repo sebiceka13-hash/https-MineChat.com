@@ -2376,8 +2376,15 @@
         const src = await serverImage(text, prefs.imageSize, prefs.imageQuality);
         dataUrl = await srcToDataUrl(src);
       } catch (e) {
+        if (e && e.needAuth) {
+          pending.remove();
+          showGate();
+          busy = false;
+          send.disabled = false;
+          return;
+        }
         dataUrl = null;
-        const codeLike = !e || !e.message || e.message === "need_auth" || /^[a-z_]+$/.test(e.message);
+        const codeLike = !e || !e.message || /^[a-z_]+$/.test(e.message);
         failMsg = codeLike ? T("imgFailed") : e.message;
       }
       pending.remove();
