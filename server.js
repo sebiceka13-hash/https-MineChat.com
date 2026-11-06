@@ -279,15 +279,15 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 
 const GEMINI_KEY = String(process.env.GEMINI_API_KEY || '').trim();
-const GEMINI_CHAT_MODEL = String(process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
+const GEMINI_CHAT_MODEL = String(process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite').trim();
 const GEMINI_IMAGE_MODEL = String(process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image').trim();
 const GEMINI_BASE = (String(process.env.GEMINI_API_BASE || '').trim() || 'https://generativelanguage.googleapis.com/v1beta/models/').replace(/\/*$/, '/');
 const GEMINI_FALLBACK_MODELS = (String(process.env.GEMINI_FALLBACK_MODELS || 'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite'))
   .split(',').map((m) => m.trim()).filter(Boolean)
   .filter((m) => m !== GEMINI_CHAT_MODEL);
 const GEMINI_RETRY_DELAY_MS = Number(process.env.GEMINI_RETRY_DELAY_MS) || 350;
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 15000;
-const GEMINI_BUSY_COOLDOWN_MS = Number(process.env.GEMINI_BUSY_COOLDOWN_MS) || 60000;
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 10000;
+const GEMINI_BUSY_COOLDOWN_MS = Number(process.env.GEMINI_BUSY_COOLDOWN_MS) || 600000;
 const geminiBusyUntil = new Map();
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

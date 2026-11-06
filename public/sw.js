@@ -1,4 +1,4 @@
-﻿const VERSION = 'minechat-v1.0.51';
+﻿const VERSION = 'minechat-v1.0.52';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -36,10 +36,10 @@ function offlinePage() {
     '<!doctype html><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>Mine Chat</title>' +
-    '<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0a0e1a;color:#eaf0ff;font-family:system-ui,-apple-system,Segoe UI,sans-serif">' +
+    '<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#fff;color:#111;font-family:system-ui,-apple-system,Segoe UI,sans-serif">' +
     '<div style="text-align:center;padding:24px">' +
     '<h1 style="font-size:20px;margin:0 0 8px">Mine Chat</h1>' +
-    '<p style="color:#9aa6c0;margin:0 0 14px">Pa lidhje interneti. Provo p\u00ebrs\u00ebri.</p>' +
+    '<p style="color:#5b6472;margin:0 0 14px">Pa lidhje interneti. Provo p\u00ebrs\u00ebri.</p>' +
     '<button onclick="location.reload()" style="font:inherit;padding:10px 18px;border-radius:10px;border:0;background:#2f6fe4;color:#fff;cursor:pointer">Provo p\u00ebrs\u00ebri</button>' +
     '</div></body>';
   return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });

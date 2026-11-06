@@ -2412,7 +2412,7 @@
       if (!response.ok || !response.body) {
         dropTyping();
         const probe = await response.json().catch(() => ({}));
-        const reply = probe.error || "Something went wrong.";
+        const reply = probe.error || "Nuk arrita të marr përgjigje. Provo përsëri.";
         c.msgs.push({ role: "assistant", content: reply, at: Date.now(), bad: true });
         save();
         addMessage(reply, "bot", "error");

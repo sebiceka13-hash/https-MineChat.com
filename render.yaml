@@ -13,7 +13,7 @@ services:
       - key: SSL_OFF
         value: "1"
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.5-flash-lite
       - key: GEMINI_IMAGE_MODEL
         value: gemini-2.5-flash-image
       - key: GEMINI_MAX_OUTPUT_TOKENS
