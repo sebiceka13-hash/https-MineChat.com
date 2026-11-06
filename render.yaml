@@ -15,13 +15,19 @@ services:
       - key: GEMINI_MODEL
         value: gemini-3.5-flash-lite
       - key: GEMINI_IMAGE_MODEL
-        value: gemini-2.5-flash-image
+        value: gemini-3.1-flash-image
       - key: GEMINI_MAX_OUTPUT_TOKENS
         value: "16000"
       - key: OPENAI_MODEL
         value: gpt-4o-mini
       - key: IMAGE_MODEL
         value: gpt-image-1
+      - key: IMAGE_FREE_TIMEOUT_MS
+        value: "45000"
+      - key: IMAGE_FREE_MAX_WAIT_MS
+        value: "20000"
+      - key: POLLINATIONS_TOKEN
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENAI_API_KEY

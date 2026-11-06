@@ -2158,7 +2158,7 @@
     const r = await fetch("/api/image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, size: size || "1024x1024", quality: quality || "low" })
+      body: JSON.stringify({ prompt, size: size || "1024x1024", quality: quality || "low", lang: prefs.replyLang || prefs.lang })
     });
     const d = await r.json().catch(() => ({}));
     if (r.status === 401) { const e = new Error("need_auth"); e.needAuth = true; throw e; }
@@ -2377,7 +2377,8 @@
         dataUrl = await srcToDataUrl(src);
       } catch (e) {
         dataUrl = null;
-        failMsg = e && e.message && e.message !== "need_auth" && !/^[A-Z]/.test(e.message) ? e.message : T("imgFailed");
+        const codeLike = !e || !e.message || e.message === "need_auth" || /^[a-z_]+$/.test(e.message);
+        failMsg = codeLike ? T("imgFailed") : e.message;
       }
       pending.remove();
       if (dataUrl) {

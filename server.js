@@ -1256,47 +1256,86 @@ const IMAGE_QUALITY = process.env.IMAGE_QUALITY || 'low';
 const IMAGE_SIZES = new Set(['1024x1024', '1024x1536', '1536x1024']);
 const IMAGE_QUALITIES = new Set(['low', 'medium', 'high']);
 const POLLINATIONS_BASE = process.env.POLLINATIONS_BASE || 'https://image.pollinations.ai/prompt/';
+// Optional: a free "pollen" key raises the anonymous limit (1 image / 45 s).
+const POLLINATIONS_TOKEN = String(process.env.POLLINATIONS_TOKEN || '').trim();
 const HF_TOKEN = process.env.HF_TOKEN || '';
 const HF_IMAGE_MODEL = process.env.HF_IMAGE_MODEL || 'black-forest-labs/FLUX.1-schnell';
+const IMAGE_FREE_TIMEOUT_MS = Number(process.env.IMAGE_FREE_TIMEOUT_MS) || 45000;
+const IMAGE_FREE_MAX_WAIT_MS = Number(process.env.IMAGE_FREE_MAX_WAIT_MS) || 20000;
+const IMAGE_CACHE_TTL_MS = 30 * 60 * 1000;
+const IMAGE_CACHE_MAX = 12;
+const imageCache = new Map();
+// When the next free picture is allowed. The service accepts one image every
+// ~45 seconds per IP, so we track it ourselves and never hammer it.
+let freeNextAt = 0;
+const FREE_IMAGE_INTERVAL_MS = 45 * 1000;
 
-function httpsGetBuffer(url, headers = {}, redirects = 3) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers }, (r) => {
-      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && redirects > 0) {
-        r.resume();
-        return resolve(httpsGetBuffer(new URL(r.headers.location, url).toString(), headers, redirects - 1));
-      }
-      if (r.statusCode !== 200) {
-        r.resume();
-        return reject(new Error(`Shërbimi falas i imazheve ktheu ${r.statusCode}.`));
-      }
-      const chunks = [];
-      r.on('data', (c) => chunks.push(c));
-      r.on('end', () => resolve({ buffer: Buffer.concat(chunks), mime: r.headers['content-type'] || 'image/jpeg' }));
-    });
-    req.on('error', reject);
-    req.setTimeout(90000, () => req.destroy(new Error('Shërbimi falas i imazheve nuk u përgjigj në kohë.')));
-  });
+function imageCacheGet(key) {
+  const hit = imageCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > IMAGE_CACHE_TTL_MS) {
+    imageCache.delete(key);
+    return null;
+  }
+  imageCache.delete(key);
+  imageCache.set(key, hit);
+  return hit;
 }
 
-async function pollinationsImage(prompt, size) {
-  let lastErr;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const [w, h] = size.split('x');
-      const url = `${POLLINATIONS_BASE}${encodeURIComponent(prompt)}?width=${w}&height=${h}&nologo=true&seed=${Date.now() % 1000000 + attempt}`;
-      const { buffer, mime } = await httpsGetBuffer(url, {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
-        Accept: 'image/*,*/*;q=0.8',
-      });
-      if (!buffer.length || buffer.length < 100) throw new Error('Shërbimi falas i imazheve ktheu përgjigje bosh.');
-      return { image: `data:${mime};base64,${buffer.toString('base64')}` };
-    } catch (e) {
-      lastErr = e;
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * attempt));
-    }
+function imageCacheSet(key, value) {
+  imageCache.set(key, { ...value, at: Date.now() });
+  while (imageCache.size > IMAGE_CACHE_MAX) {
+    imageCache.delete(imageCache.keys().next().value);
   }
-  throw lastErr;
+}
+
+// The free image service allows one picture every ~45 seconds per IP. When it
+// refuses it also says how long to wait, so the caller can decide instead of
+// hanging for a minute.
+async function pollinationsImage(prompt, size, options = {}) {
+  const timeoutMs = options.timeoutMs || IMAGE_FREE_TIMEOUT_MS;
+  const [w, h] = size.split('x');
+  const url = `${POLLINATIONS_BASE}${encodeURIComponent(prompt)}?width=${w}&height=${h}&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+    Accept: 'image/*,*/*;q=0.8',
+  };
+  if (POLLINATIONS_TOKEN) headers.Authorization = `Bearer ${POLLINATIONS_TOKEN}`;
+  const signals = [AbortSignal.timeout(timeoutMs)];
+  if (options.signal) signals.push(options.signal);
+  let res;
+  try {
+    res = await fetch(url, { headers, signal: AbortSignal.any(signals) });
+  } catch (error) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+      const timeout = new Error('Shërbimi i imazheve nuk u përgjigj në kohë.');
+      timeout.reason = 'timeout';
+      throw timeout;
+    }
+    throw error;
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    const waitMatch = /retry\s*after\s*(\d+)\s*s?/i.exec(body);
+    const headerWait = Number(res.headers.get('retry-after')) || 0;
+    const retryAfter = waitMatch ? Number(waitMatch[1]) : headerWait;
+    const error = new Error(
+      res.status === 402 || res.status === 429
+        ? (retryAfter
+          ? `Imazhet falas lejojnë 1 foto në 45 sekonda. Provo pas ${retryAfter} sekondash.`
+          : 'Imazhet falas lejojnë 1 foto në 45 sekonda. Provo pas pak sekondash.')
+        : `Shërbimi i imazheve ktheu ${res.status}.`
+    );
+    error.status = res.status;
+    error.retryAfter = retryAfter;
+    freeNextAt = Date.now() + (retryAfter ? retryAfter * 1000 : FREE_IMAGE_INTERVAL_MS);
+    throw error;
+  }
+  const mime = res.headers.get('content-type') || 'image/jpeg';
+  const buffer = Buffer.from(await res.arrayBuffer());
+  if (!buffer.length || buffer.length < 100) throw new Error('Shërbimi i imazheve ktheu përgjigje bosh.');
+  freeNextAt = Date.now() + FREE_IMAGE_INTERVAL_MS;
+  return { image: `data:${mime};base64,${buffer.toString('base64')}`, model: POLLINATIONS_TOKEN ? 'pollinations+key' : 'pollinations' };
 }
 
 async function hfImage(prompt, size) {
@@ -1355,6 +1394,22 @@ async function enhanceImagePrompt(raw) {
 
 const imageSkip = { gemini: false, openai: false };
 
+// Resolves with the first provider that actually returns a picture.
+function firstSuccess(promises) {
+  return new Promise((resolve, reject) => {
+    if (!promises.length) return reject(new Error('Asnjë burim imazhi nuk është i disponueshëm.'));
+    let pending = promises.length;
+    let lastError = null;
+    for (const promise of promises) {
+      promise.then(resolve).catch((error) => {
+        lastError = error;
+        pending -= 1;
+        if (pending === 0) reject(lastError);
+      });
+    }
+  });
+}
+
 app.post('/api/image', async (req, res) => {
   const prompt = String(req.body?.prompt || '').trim().slice(0, 1000);
   if (!prompt) return res.status(400).json({ error: 'Write what image you want.' });
@@ -1362,10 +1417,22 @@ app.post('/api/image', async (req, res) => {
 
   const size = IMAGE_SIZES.has(String(req.body?.size)) ? String(req.body.size) : '1024x1024';
   const quality = IMAGE_QUALITIES.has(String(req.body?.quality)) ? String(req.body.quality) : IMAGE_QUALITY;
+  const lang = String(req.body?.lang || '').toLowerCase();
 
-  try {
-    let result = null;
+  const cacheKey = `${size}|${prompt.toLowerCase()}`;
+  const cached = imageCacheGet(cacheKey);
+  if (cached) {
+    return res.json({ image: cached.image, prompt, model: cached.model, size, cached: true });
+  }
 
+  const started = Date.now();
+  const freeCtrl = new AbortController();
+  // Image models understand English best. When the request is in another
+  // language we translate it first — but that work runs in parallel with the
+  // paid providers, so it no longer adds its latency to the total.
+  const needsEnglish = lang ? !lang.startsWith('en') : /[^\x20-\x7E]/.test(prompt);
+
+  const paidPromise = (async () => {
     if (useGemini && !imageSkip.gemini) {
       try {
         const aspect = size === '1024x1536' ? '9:16' : size === '1536x1024' ? '16:9' : '1:1';
@@ -1378,47 +1445,95 @@ app.post('/api/image', async (req, res) => {
         const raw = img?.inlineData?.data || img?.inline_data?.data;
         if (raw) {
           const mime = img?.inlineData?.mimeType || img?.inline_data?.mime_type || 'image/png';
-          result = { image: `data:${mime};base64,${raw}`, model: GEMINI_IMAGE_MODEL };
+          return { image: `data:${mime};base64,${raw}`, model: GEMINI_IMAGE_MODEL, source: 'paid' };
         }
       } catch (gemErr) {
         console.error('[image:gemini]', gemErr?.message || gemErr);
         imageSkip.gemini = true;
       }
     }
-
-    if (!result && openai && !imageSkip.openai) {
+    if (openai && !imageSkip.openai) {
       try {
         const r = await openai.images.generate({ model: IMAGE_MODEL, prompt, size, n: 1, quality });
         const b64 = r?.data?.[0]?.b64_json;
-        if (b64) result = { image: `data:image/png;base64,${b64}`, model: IMAGE_MODEL };
+        if (b64) return { image: `data:image/png;base64,${b64}`, model: IMAGE_MODEL, source: 'paid' };
       } catch (oaiErr) {
         console.error('[image:openai]', oaiErr?.message || oaiErr);
         imageSkip.openai = true;
       }
     }
+    throw new Error('Asnjë burim i paguar imazhi nuk funksionoi.');
+  })();
 
-    if (!result) {
-      const enriched = await enhanceImagePrompt(prompt);
-      if (HF_TOKEN) {
-        try {
-          const p = await hfImage(enriched, size);
-          result = { image: p.image, model: `hf:${HF_IMAGE_MODEL}` };
-        } catch (hfErr) {
-          console.error('[image:hf]', hfErr?.message || hfErr);
-        }
-      }
-      if (!result) {
-        const p = await pollinationsImage(enriched, size);
-        result = { image: p.image, model: 'pollinations' };
-      }
+  let freeError = null;
+  const freeAttempts = [];
+  const englishPrompt = needsEnglish ? enhanceImagePrompt(prompt) : Promise.resolve(prompt);
+
+  // Respect the free tier's cooldown. Waiting a few seconds is fine; asking the
+  // user to sit through a minute is not, so in that case we answer right away.
+  const waitMs = Math.max(0, freeNextAt - Date.now());
+  const freeTooBusy = waitMs > IMAGE_FREE_MAX_WAIT_MS;
+
+  if (!freeTooBusy) {
+    freeAttempts.push((async () => {
+      if (waitMs > 0) await sleep(waitMs);
+      const text = await englishPrompt;
+      const p = await pollinationsImage(text, size, { signal: freeCtrl.signal });
+      return { image: p.image, model: p.model, source: 'free' };
+    })());
+    if (HF_TOKEN) {
+      freeAttempts.push((async () => {
+        const p = await hfImage(await englishPrompt, size);
+        return { image: p.image, model: `hf:${HF_IMAGE_MODEL}`, source: 'free' };
+      })());
     }
-
-    res.json({ image: result.image, prompt, model: result.model, size });
-  } catch (error) {
-    const info = describeAiError(error);
-    console.error(`[image:${info.reason}]`, error.message);
-    res.status(500).json({ error: info.error, reason: info.reason });
   }
+
+  let result = null;
+  try {
+    result = await firstSuccess([
+      paidPromise,
+      ...freeAttempts.map((p) => p.catch((error) => { freeError = error; throw error; })),
+    ]);
+  } catch (error) {
+    freeError = freeError || error;
+  }
+
+  if (result && result.source === 'paid') freeCtrl.abort();
+
+  // Free tier refused because of the 1-image-per-45-seconds limit: wait the
+  // short advertised time once, then try again with the translated prompt.
+  if (!result && !freeTooBusy && freeError?.retryAfter > 0 && freeError.retryAfter * 1000 <= IMAGE_FREE_MAX_WAIT_MS) {
+    const [text] = await Promise.all([
+      englishPrompt,
+      sleep(freeError.retryAfter * 1000),
+    ]);
+    try {
+      const p = await pollinationsImage(text, size, { timeoutMs: IMAGE_FREE_TIMEOUT_MS });
+      result = { image: p.image, model: p.model, source: 'free' };
+    } catch (retryError) {
+      freeError = retryError;
+    }
+  }
+
+  if (!result) {
+    if (freeTooBusy) {
+      const seconds = Math.ceil(waitMs / 1000);
+      return res.status(429).json({
+        error: `Imazhet falas lejojnë 1 foto në 45 sekonda. Provo pas ${seconds} sekondash.`,
+        reason: 'rate_limit',
+      });
+    }
+    const info = describeAiError(freeError || new Error('image_failed'));
+    const message = freeError?.retryAfter > 0 ? freeError.message : info.error;
+    console.error(`[image:${info.reason}]`, freeError?.message || 'failed', `${Date.now() - started}ms`);
+    return res.status(500).json({ error: message, reason: info.reason });
+  }
+
+  if (result.source) delete result.source;
+  imageCacheSet(cacheKey, result);
+  console.log(`[image] ok model=${result.model} ms=${Date.now() - started}`);
+  res.json({ image: result.image, prompt, model: result.model, size, ms: Date.now() - started });
 });
 
 app.post('/api/enhance-prompt', async (req, res) => {
