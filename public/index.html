@@ -2699,7 +2699,9 @@
     return new Promise((resolve) => {
       if (window.google?.accounts?.id) return resolve(true);
       const script = document.createElement("script");
-      script.src = "https://accounts.google.com/gsi/client";
+      // hl=en keeps Google's button in English ("Sign in with Google") even
+      // when the phone/browser is set to another language.
+      script.src = "https://accounts.google.com/gsi/client?hl=en";
       script.async = true;
       script.defer = true;
       setTimeout(() => resolve(false), 10000);
@@ -2809,6 +2811,7 @@
         size: "large",
         shape: "rectangular",
         text: "signin_with_google",
+        locale: "en",
         width
       });
     };
