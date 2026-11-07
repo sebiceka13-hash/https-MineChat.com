@@ -2537,7 +2537,59 @@
   const loginBtn = document.getElementById("loginBtn");
   const userName = document.getElementById("userName");
   const userPic = document.getElementById("userPic");
+  // Long-lived signed token: lets the browser sign in again by itself after a
+  // server restart, so "Sign in with Google" is asked only once per device.
+  const AUTH_TOKEN_KEY = "mc_auth_token";
+  function saveAuthToken(token) {
+    try {
+      if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } catch { /* injorohet */ }
+  }
+  function readAuthToken() {
+    try { return localStorage.getItem(AUTH_TOKEN_KEY) || ""; } catch { return ""; }
+  }
+  function clearAuthToken() {
+    try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch { /* injorohet */ }
+  }
+  function enterApp(user) {
+    lastUser = user;
+    showUser(user);
+    hideGate();
+    refreshMyLabels();
+    refreshEmptyState();
+  }
+  let silentAuthRunning = null;
+  async function silentAuth() {
+    const saved = readAuthToken();
+    if (!saved) return null;
+    try {
+      const r = await fetch("/api/auth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: saved }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok && data.user) {
+        saveAuthToken(data.token || saved);
+        return data.user;
+      }
+      if (r.status === 401) clearAuthToken();
+    } catch { /* serveri s'u përgjigj */ }
+    return null;
+  }
   function showGate() {
+    // If this device remembers a login, try it before showing the sign-in
+    // screen (e.g. right after a server redeploy wiped the session).
+    if (readAuthToken()) {
+      if (!silentAuthRunning) {
+        silentAuthRunning = silentAuth().then((user) => {
+          silentAuthRunning = null;
+          if (user) enterApp(user);
+          else gate.hidden = false;
+        });
+      }
+      return;
+    }
     gate.hidden = false;
   }
   function hideGate() {
@@ -2579,6 +2631,7 @@
         return;
       }
       lastUser = data.user;
+      saveAuthToken(data.token);
       showUser(data.user);
       hideGate();
       refreshMyLabels();
@@ -2638,6 +2691,7 @@
           return;
         }
         lastUser = data.user;
+        saveAuthToken(data.token);
         showUser(data.user);
         hideGate();
         refreshMyLabels();
@@ -2729,11 +2783,15 @@
       me = await (await fetch("/api/auth/me")).json();
     } catch { /* injorohet */ }
     if (me && me.user) {
-      lastUser = me.user;
-      showUser(me.user);
-      hideGate();
-      refreshMyLabels();
-      refreshEmptyState();
+      saveAuthToken(me.token);
+      enterApp(me.user);
+      return;
+    }
+    // No live session (server restarted, redeploy, expired cookie): sign in
+    // again silently with the token this device already remembers.
+    const remembered = await silentAuth();
+    if (remembered) {
+      enterApp(remembered);
       return;
     }
     const config = await fetchAuthConfig();
@@ -2762,6 +2820,7 @@
   loginBtn.addEventListener("click", showGate);
   document.getElementById("logoutBtn").addEventListener("click", async () => {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* injorohet */ }
+    clearAuthToken();
     lastUser = null;
     showUser(null);
     refreshEmptyState();

@@ -637,6 +637,48 @@ function issueAuthSession(res, profile) {
   });
 }
 
+// A long-lived, signed "remember me" token kept in the browser. It survives
+// server restarts and redeploys (which wipe the session store), so the user
+// does not have to sign in with Google again every time.
+const AUTH_TOKEN_SECRET = process.env.AUTH_SECRET || process.env.APP_SECRET ||
+  crypto.createHash('sha256')
+    .update(`minechat|${process.env.GEMINI_API_KEY || ''}|${process.env.OPENAI_API_KEY || 'local'}|${GOOGLE_CLIENT_ID || ''}`)
+    .digest('hex');
+
+function authTokenSign(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const mac = crypto.createHmac('sha256', AUTH_TOKEN_SECRET).update(body).digest('base64url');
+  return `${body}.${mac}`;
+}
+
+function authTokenVerify(token) {
+  const raw = String(token || '');
+  const dot = raw.lastIndexOf('.');
+  if (dot <= 0) return null;
+  const body = raw.slice(0, dot);
+  const given = Buffer.from(raw.slice(dot + 1));
+  const expected = Buffer.from(crypto.createHmac('sha256', AUTH_TOKEN_SECRET).update(body).digest('base64url'));
+  if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (!payload || !payload.email || !payload.exp || payload.exp < Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function profileToken(profile) {
+  return authTokenSign({
+    email: profile.email,
+    name: profile.name || '',
+    picture: profile.picture || '',
+    phone: profile.phone || '',
+    provider: profile.provider || 'google',
+    exp: Date.now() + AUTH_TTL_MS,
+  });
+}
+
 const PROTECTED_ROUTES = [
   '/chat', '/api/chat/stream', '/api/image', '/api/enhance-prompt', '/api/vision', '/api/chat/reset', '/api/translate',
 ];
@@ -668,6 +710,27 @@ app.get('/api/auth/me', (req, res) => {
   res.json({
     enabled: authRequired(),
     user: user ? { email: user.email, name: user.name, phone: user.phone || '', picture: user.picture, provider: user.provider } : null,
+    token: user ? profileToken(user) : null,
+  });
+});
+
+// Sign in again from the long-lived token the browser remembers, so a server
+// redeploy or restart does not send the user back to the Google button.
+app.post('/api/auth/token', (req, res) => {
+  const payload = authTokenVerify(req.body?.token);
+  if (!payload) return res.status(401).json({ error: 'Sesioni ka skaduar. Hyr përsëri.' });
+  const profile = {
+    provider: payload.provider || 'google',
+    sub: payload.email,
+    email: payload.email,
+    name: payload.name || payload.email.split('@')[0],
+    picture: payload.picture || '',
+    phone: payload.phone || '',
+  };
+  issueAuthSession(res, profile);
+  res.json({
+    user: { email: profile.email, name: profile.name, picture: profile.picture, phone: profile.phone, provider: profile.provider },
+    token: profileToken(profile),
   });
 });
 
@@ -689,7 +752,7 @@ app.post('/api/auth/register', (req, res) => {
 
   const profile = { provider: 'local', sub: record.email, email: record.email, name: record.name, phone: record.phone, picture: '' };
   issueAuthSession(res, profile);
-  res.status(201).json({ user: profile });
+  res.status(201).json({ user: profile, token: profileToken(profile) });
 });
 
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
@@ -750,7 +813,7 @@ app.post('/api/auth/login', (req, res) => {
 
   const profile = { provider: 'local', sub: record.email, email: record.email, name: record.name, phone: record.phone || '', picture: '' };
   issueAuthSession(res, profile);
-  res.json({ user: profile });
+  res.json({ user: profile, token: profileToken(profile) });
 });
 
 app.post('/api/auth/google', async (req, res) => {
@@ -767,7 +830,10 @@ app.post('/api/auth/google', async (req, res) => {
       phone: '',
     };
     issueAuthSession(res, profile);
-    res.json({ user: { email: profile.email, name: profile.name, picture: profile.picture, phone: '', provider: 'google' } });
+    res.json({
+      user: { email: profile.email, name: profile.name, picture: profile.picture, phone: '', provider: 'google' },
+      token: profileToken(profile),
+    });
   } catch (error) {
     console.error('[google]', error.message);
     res.status(401).json({ error: 'Verifikimi me Google dështoi. Provo përsëri.' });
@@ -898,7 +964,10 @@ app.post('/api/auth/verify', (req, res) => {
     phone: channel === 'sms' ? target : '',
   };
   issueAuthSession(res, profile);
-  res.json({ user: { email: profile.email, name: profile.name, picture: '', phone: profile.phone, provider: profile.provider } });
+  res.json({
+    user: { email: profile.email, name: profile.name, picture: '', phone: profile.phone, provider: profile.provider },
+    token: profileToken(profile),
+  });
 });
 
 const ACCOUNTS_FILE = path.join(DATA_DIR, 'accounts.json');
@@ -953,7 +1022,7 @@ app.post('/api/auth/password/register', (req, res) => {
   saveAccounts(passwordAccounts);
   const profile = { provider: 'password', sub: email, email, name: record.name, picture: '', phone: '' };
   issueAuthSession(res, profile);
-  res.json({ user: { email, name: record.name, picture: '', phone: '', provider: 'password' } });
+  res.json({ user: { email, name: record.name, picture: '', phone: '', provider: 'password' }, token: profileToken(profile) });
 });
 
 app.post('/api/auth/password/login', (req, res) => {
@@ -965,7 +1034,7 @@ app.post('/api/auth/password/login', (req, res) => {
   }
   const profile = { provider: 'password', sub: email, email, name: account.name, picture: '', phone: '' };
   issueAuthSession(res, profile);
-  res.json({ user: { email, name: account.name, picture: '', phone: '', provider: 'password' } });
+  res.json({ user: { email, name: account.name, picture: '', phone: '', provider: 'password' }, token: profileToken(profile) });
 });
 
 app.get('/api/auth/password/exists', (req, res) => {
