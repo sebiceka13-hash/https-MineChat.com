@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html><html lang="en"><head><style>html,body{background:#ffffff!important;color-scheme:light}</style>  <meta charset="UTF-8">  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>Mine Chat — Multilingual AI Chat Assistant</title>  <meta name="description" content="Mine Chat is a fast, multilingual AI chat assistant. Ask questions, solve problems from a photo, and create images — in your own language, from any device.">  <meta name="keywords" content="Mine Chat, AI chat, AI assistant, chatbot, ask AI, image generation, multilingual AI, solve problems, Gemini">  <meta name="author" content="Mine Chat">  <meta name="robots" content="index, follow, max-image-preview:large">  <meta name="theme-color" content="#ffffff">  <link rel="canonical" href="https://minechat.com/">  <link rel="manifest" href="/manifest.webmanifest">  <meta name="mobile-web-app-capable" content="yes">  <meta name="apple-mobile-web-app-capable" content="yes">  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">  <meta name="apple-mobile-web-app-title" content="Mine Chat">    <link rel="icon" href="/logo-custom.png" type="image/png">  <link rel="alternate icon" href="/favicon.svg" type="image/svg+xml">  <link rel="apple-touch-icon" href="/logo-custom.png">  <!-- Open Graph -->  <meta property="og:type" content="website">  <meta property="og:site_name" content="Mine Chat">  <meta property="og:title" content="Mine Chat — Multilingual AI Chat Assistant">  <meta property="og:description" content="Fast, multilingual AI chat assistant. Ask questions, solve problems from a photo, and create images in your own language.">  <meta property="og:url" content="https://minechat.com/">  <meta property="og:image" content="https://minechat.com/logo-custom.png">  <meta property="og:image:width" content="95">  <meta property="og:image:height" content="55">  <meta property="og:locale" content="en">  <!-- Twitter -->  <meta name="twitter:card" content="summary_large_image">  <meta name="twitter:title" content="Mine Chat — Multilingual AI Chat Assistant">  <meta name="twitter:description" content="Fast, multilingual AI chat assistant. Ask, solve from a photo, and create images.">  <meta name="twitter:image" content="https://minechat.com/logo-custom.png">  <!-- Structured data -->  <script type="application/ld+json">  {    "@context": "https://schema.org",    "@type": "WebApplication",    "name": "Mine Chat",    "applicationCategory": "UtilitiesApplication",    "operatingSystem": "Web, Android, iOS",    "browserRequirements": "Requires JavaScript",    "description": "Multilingual AI chat assistant: ask questions, solve problems from a photo, and create images in your own language.",    "url": "https://minechat.com/",    "inLanguage": "en",    "isAccessibleForFree": true,    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },    "featureList": [      "Multilingual chat with an AI assistant",      "Solve problems from a photo",      "Create images from a description"    ]  }  </script>  <script>    (function () {
+﻿<!DOCTYPE html><html lang="en"><head><style>html,body{background:#ffffff!important;color-scheme:light}</style>  <meta charset="UTF-8">  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">  <title>Mine Chat — Multilingual AI Chat Assistant</title>  <meta name="description" content="Mine Chat is a fast, multilingual AI chat assistant. Ask questions, solve problems from a photo, and create images — in your own language, from any device.">  <meta name="keywords" content="Mine Chat, AI chat, AI assistant, chatbot, ask AI, image generation, multilingual AI, solve problems, Gemini">  <meta name="author" content="Mine Chat">  <meta name="robots" content="index, follow, max-image-preview:large">  <meta name="theme-color" content="#ffffff">  <link rel="canonical" href="https://minechat.com/">  <link rel="manifest" href="/manifest.webmanifest">  <meta name="mobile-web-app-capable" content="yes">  <meta name="apple-mobile-web-app-capable" content="yes">  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">  <meta name="apple-mobile-web-app-title" content="Mine Chat">    <link rel="icon" href="/logo-custom.png" type="image/png">  <link rel="alternate icon" href="/favicon.svg" type="image/svg+xml">  <link rel="apple-touch-icon" href="/logo-custom.png">  <!-- Open Graph -->  <meta property="og:type" content="website">  <meta property="og:site_name" content="Mine Chat">  <meta property="og:title" content="Mine Chat — Multilingual AI Chat Assistant">  <meta property="og:description" content="Fast, multilingual AI chat assistant. Ask questions, solve problems from a photo, and create images in your own language.">  <meta property="og:url" content="https://minechat.com/">  <meta property="og:image" content="https://minechat.com/logo-custom.png">  <meta property="og:image:width" content="95">  <meta property="og:image:height" content="55">  <meta property="og:locale" content="en">  <!-- Twitter -->  <meta name="twitter:card" content="summary_large_image">  <meta name="twitter:title" content="Mine Chat — Multilingual AI Chat Assistant">  <meta name="twitter:description" content="Fast, multilingual AI chat assistant. Ask, solve from a photo, and create images.">  <meta name="twitter:image" content="https://minechat.com/logo-custom.png">  <!-- Structured data -->  <script type="application/ld+json">  {    "@context": "https://schema.org",    "@type": "WebApplication",    "name": "Mine Chat",    "applicationCategory": "UtilitiesApplication",    "operatingSystem": "Web, Android, iOS",    "browserRequirements": "Requires JavaScript",    "description": "Multilingual AI chat assistant: ask questions, solve problems from a photo, and create images in your own language.",    "url": "https://minechat.com/",    "inLanguage": "en",    "isAccessibleForFree": true,    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },    "featureList": [      "Multilingual chat with an AI assistant",      "Solve problems from a photo",      "Create images from a description"    ]  }  </script>  <script>    (function () {
       if (location.protocol !== "file:") return;
       var cands = [
         "https://minechat.com/",
@@ -734,6 +734,46 @@
       #side { position: fixed; top: 0; bottom: 0; left: 0; }
       body.side-off #side { left: -268px; margin-left: 0; }
       #main { width: 100%; }
+    }
+
+    /* ===== Phones, notches and on-screen keyboards ===== */
+    html { -webkit-text-size-adjust: 100%; }
+    body { overscroll-behavior: none; }
+    @supports (height: 100dvh) {
+      body { height: 100dvh; }
+    }
+    /* Short screens (landscape phones, tiny windows, on-screen keyboards):
+       let the sign-in card scroll instead of clipping its top. */
+    #gate { align-items: flex-start; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .gate-card { margin: auto; }
+    @media (max-width: 560px) {
+      header { padding-top: calc(9px + env(safe-area-inset-top, 0px)); }
+      footer { padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+      #side {
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      /* Keep the sign-in card clear of the notch and the home bar. */
+      #gate {
+        padding: calc(14px + env(safe-area-inset-top, 0px)) 14px calc(14px + env(safe-area-inset-bottom, 0px));
+      }
+      .gate-card { margin: auto; padding: 22px 18px; border-radius: 18px; }
+      .gate-card h2 { font-size: 18px; }
+      .gate-card p { font-size: 13.5px; margin-bottom: 16px; }
+      #gateBtn { width: 100%; }
+      #gateBtn > div { max-width: 100%; }
+      /* 16px stops iOS from zooming the whole page when the input is focused. */
+      #input { font-size: 16px; line-height: 1.45; }
+      #userName { display: none !important; }
+    }
+    @media (max-width: 380px) {
+      header { padding-left: 8px; padding-right: 8px; }
+      .brand .avatar { width: 30px; height: 30px; }
+      .brand h1 { font-size: 14px; }
+      #userBar { gap: 6px; }
+      #logoutBtn { padding: 7px 9px; font-size: 12.5px; }
+      .gate-card { padding: 20px 14px; }
+      .gate-pw-row { flex-direction: column; }
     }
 </style><style>html{background:#fff!important}body{background:#fff!important}</style></head><body class="light" style="background:#ffffff!important">
 <div id="splash" hidden style="display:none!important"></div><div id="scrim"></div><div id="gate" hidden>
@@ -2559,6 +2599,7 @@
     refreshEmptyState();
   }
   let silentAuthRunning = null;
+  let googleRender = null;
   async function silentAuth() {
     const saved = readAuthToken();
     if (!saved) return null;
@@ -2585,16 +2626,24 @@
         silentAuthRunning = silentAuth().then((user) => {
           silentAuthRunning = null;
           if (user) enterApp(user);
-          else gate.hidden = false;
+          else {
+            gate.hidden = false;
+            if (googleRender) requestAnimationFrame(googleRender);
+          }
         });
       }
       return;
     }
     gate.hidden = false;
+    // The Google button is rendered while the gate is hidden, when widths are
+    // 0. Re-render once it is visible so it fits the card on phones.
+    if (googleRender) requestAnimationFrame(googleRender);
   }
   function hideGate() {
     gate.hidden = true;
-    input.focus();
+    // On phones, focusing the box immediately opens the keyboard and makes the
+    // freshly signed-in chat jump. Only pre-focus on desktop-size screens.
+    if (window.matchMedia("(min-width: 900px) and (pointer: fine)").matches) input.focus();
   }
   function showUser(user) {
     if (!user) {
@@ -2747,16 +2796,30 @@
     }
     const render = () => {
       const holder = document.getElementById("gateBtn");
-      if (!holder || holder.childElementCount) return;
+      if (!holder) return;
+      // Google's button has a fixed pixel width (200-400). Asking for 300px
+      // makes it stick out of the card on phones, so size it to the card.
+      const available = Math.floor(holder.clientWidth || holder.parentElement?.clientWidth || 300);
+      const width = Math.max(200, Math.min(320, available));
+      if (holder.dataset.gwidth === String(width) && holder.childElementCount) return;
+      holder.replaceChildren();
+      holder.dataset.gwidth = String(width);
       window.google.accounts.id.renderButton(holder, {
         theme: "outline",
         size: "large",
         shape: "rectangular",
         text: "signin_with_google",
-        width: 300
+        width
       });
     };
     render();
+    googleRender = render;
+    window.addEventListener("resize", () => {
+      if (!gate.hidden) render();
+    });
+    window.addEventListener("orientationchange", () => {
+      if (!gate.hidden) setTimeout(render, 250);
+    });
     setTimeout(() => {
       const holder = document.getElementById("gateBtn");
       if (holder && !holder.childElementCount && !gate.hidden) {
